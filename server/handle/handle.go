@@ -57,14 +57,14 @@ func GetPaymentItem(ctx *gin.Context) {
 		return
 	}
 	var pItem []Object.PaymentItem
-	db.Find(&pMethod)
+	db.Where("method=?", pmName).Find(&pItem)
 
-	if len(pMethod) == 0 {
-		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No method be found"}})
+	if len(pItem) == 0 {
+		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No payment item be found"}})
 		return
 	}
 
-	data, err := json.Marshal(pMethod)
+	data, err := json.Marshal(pItem)
 	if err != nil {
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot parse data to json"}})
 		return
