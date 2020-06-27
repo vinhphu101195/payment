@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+//AddPaymentMethod ...
 func AddPaymentMethod(ctx *gin.Context) {
 	var pMethod Object.PaymentMethod
 	if ctx.BindJSON(&pMethod) != nil {
@@ -20,6 +21,7 @@ func AddPaymentMethod(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"insert_id": pMethod.ID}})
 }
 
+//AddPaymentItem ...
 func AddPaymentItem(ctx *gin.Context) {
 	var pMethod Object.PaymentMethod
 	if ctx.BindJSON(&pMethod) != nil {
@@ -29,7 +31,7 @@ func AddPaymentItem(ctx *gin.Context) {
 	pMethod.ID = 0
 
 	if err := db.Save(&pMethod).Error; err != nil {
-		log.Printf(err)
+		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not insert to database"}})
 		return
 	}

@@ -8,6 +8,7 @@ import (
 	"log"
 	"payment/server/Object"
 	database "payment/server/database"
+	"strings"
 
 	"github.com/jinzhu/gorm"
 
@@ -69,12 +70,6 @@ func GetPaymentItem(ctx *gin.Context) {
 		return
 	}
 	var pItem []Object.PaymentItem
-<<<<<<< HEAD
-	db.Find(&pItem)
-
-	if len(pItem) == 0 {
-		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No method be found"}})
-=======
 	if err := db.Where("method=?", pmName).Find(&pItem); err != nil {
 		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot find Item"}})
@@ -83,7 +78,6 @@ func GetPaymentItem(ctx *gin.Context) {
 
 	if len(pItem) == 0 {
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No payment item be found"}})
->>>>>>> 5b491df36977f0c4c275e0a5fac0d1b40819ee87
 		return
 	}
 
@@ -157,11 +151,21 @@ func BeginTransAction(pItem *Object.PaymentItem, provider *Object.PaymentProvide
 	}
 
 	info := make(map[string]interface{}, 0)
-	if err = json.Unmarshal(provider.Metadata, info); err != nil {
+	if err := json.Unmarshal([]byte(provider.Metadata), info); err != nil {
 		return err
 	}
 
-	res, err := napTheNgay(info, trans)
+	info["serie"] = body.Serie
+	info["pin"] = body.Pin
+
+	var res *http.Response
+	var err error
+	switch strings.ToLower(provider.Name) {
+	case "napthengay":
+		res, err = napTheNgay(info, trans)
+	case "thuthere":
+		res, err = thuTheRe(info, trans)
+	}
 	if err != nil {
 		return err
 	}
@@ -171,10 +175,11 @@ func BeginTransAction(pItem *Object.PaymentItem, provider *Object.PaymentProvide
 		return err
 	}
 
-	if err = json.Unmarshal(resBody, NtnResponse); err != nil {
+	response := make(map[string]interface{}, 0)
+	if err = json.Unmarshal(resBody, response); err != nil {
 		return err
 	}
-	if NtnResponse.Code == 100 {
+	if response["code"] == 100 {
 		trans.Status = "success"
 		db.Save(trans)
 		return nil
@@ -184,14 +189,18 @@ func BeginTransAction(pItem *Object.PaymentItem, provider *Object.PaymentProvide
 	return fmt.Errorf("failed")
 }
 
-func napTheNgay(info map[string]interface{}, trans TransAction) {
+func napTheNgay(info map[string]interface{}, trans Object.TransAction) (*http.Response, error) {
 	var plaintText = fmt.Sprintf("%s%s%d%d%d%s%s%s%s",
-		info["merchant_id"], info["api_mail"], trans.ID, trans.PaymentItemID, trans.Amount, body.Pin, body.Serie, "md5", info["secret_key"])
+		info["merchant_id"], info["api_mail"], trans.ID, trans.PaymentItemID, trans.Amount, info["pin"], info["serie"], "md5", info["secret_key"])
 	key := getMD5Hash(plaintText)
 	url := fmt.Sprintf("%s?merchant_id=%s&card_id=%d&seri_field=%s&pin_field=%s&trans_id=%d&data_sign=%s&algo_mode=md5&api_email=%s&card_value=%d",
-		info["url"], info["merchant_id"], trans.PaymentItemID, body.Serie, body.Pin, trans.ID, key, info["api_mail"], trans.Amount)
+		info["url"], info["merchant_id"], trans.PaymentItemID, info["serie"], info["pin"], trans.ID, key, info["api_mail"], trans.Amount)
 
-	http.Post(url, "application/json", nil)
+	return http.Post(url, "application/json", nil)
+}
+
+func thuTheRe(info map[string]interface{}, trans Object.TransAction) (*http.Response, error) {
+	return nil, fmt.Errorf("dasdad")
 }
 
 func getMD5Hash(text string) string {
