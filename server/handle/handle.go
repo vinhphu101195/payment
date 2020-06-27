@@ -38,13 +38,11 @@ func Init() {
 }
 
 func GetPaymentMethod(ctx *gin.Context) {
-
 	var pMethod []Object.PaymentMethod
 	if err := db.Find(&pMethod).Error; err != nil {
 		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find method"}})
 		return
-
 	}
 
 	if len(pMethod) == 0 {
@@ -52,14 +50,7 @@ func GetPaymentMethod(ctx *gin.Context) {
 		return
 	}
 
-	data, err := json.Marshal(pMethod)
-	if err != nil {
-		log.Println(err)
-		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot parse data to json"}})
-		return
-	}
-
-	ctx.JSON(200, gin.H{"error": 0, "data": data})
+	ctx.JSON(200, gin.H{"error": 0, "data": pMethod})
 }
 
 func GetPaymentItem(ctx *gin.Context) {
@@ -70,7 +61,7 @@ func GetPaymentItem(ctx *gin.Context) {
 		return
 	}
 	var pItem []Object.PaymentItem
-	if err := db.Where("method=?", pmName).Find(&pItem); err != nil {
+	if err := db.Where("method=?", pmName).Find(&pItem).Error; err != nil {
 		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot find Item"}})
 		return
@@ -81,14 +72,7 @@ func GetPaymentItem(ctx *gin.Context) {
 		return
 	}
 
-	data, err := json.Marshal(pItem)
-	if err != nil {
-		log.Println(err)
-		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot parse data to json"}})
-		return
-	}
-
-	ctx.JSON(200, gin.H{"error": 0, "data": data})
+	ctx.JSON(200, gin.H{"error": 0, "data": pItem})
 }
 
 type payBody struct {
