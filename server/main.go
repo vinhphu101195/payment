@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"payment/server/handle"
 
+	_ "payment/server/database"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -17,6 +19,7 @@ func main() {
 	r := gin.Default()
 	r.GET("/payment-method", handle.GetPaymentMethod)
 	r.GET("/payment-item/:paymentMethod", handle.GetPaymentItem)
+	r.POST("/payment", handle.Pay)
 
 	r.Run(":8000")
 }
