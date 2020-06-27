@@ -1,6 +1,8 @@
 package database
 
 import (
+	"os"
+
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 )
@@ -15,11 +17,11 @@ type DBInfo struct {
 }
 
 func (db *DBInfo) setDB() {
-	db.username = "root"
-	db.password = "123456"
-	db.url = "167.71.195.5"
-	db.port = "3306"
-	db.database = "VirtualGiftSystem"
+	db.username = os.Getenv("MYSQL_USERNAME")
+	db.password = os.Getenv("MYSQL_PASSWORD")
+	db.url = os.Getenv("MYSQL_URL")
+	db.port = os.Getenv("MYSQL_PORT")
+	db.database = os.Getenv("MYSQL_DATABASE")
 }
 
 //GetDB ...
