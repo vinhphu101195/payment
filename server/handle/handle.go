@@ -64,7 +64,7 @@ func GetPaymentItem(ctx *gin.Context) {
 		return
 	}
 	var pItem []Object.PaymentItem
-	if err := db.Where("method=?", pmName).Find(&pItem); err != nil {
+	if err := db.Where("method=?", pmName).Find(&pItem).Error; err != nil {
 		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot find Item"}})
 		return
