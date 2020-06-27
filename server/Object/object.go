@@ -5,7 +5,7 @@ import "time"
 type PaymentMethod struct {
 	ID       int    `json:"method_id"`
 	Name     string `json:"name"`
-	Order    string `json:"order"`
+	Order    int    `json:"order"`
 	ImgURL   string `json:"image"`
 	Status   string `json:"status"`
 	Platform string `json:"platform"`
@@ -24,7 +24,7 @@ type PaymentProvider struct {
 
 type PaymentItem struct {
 	ID           int    `json:"item_id"`
-	Method       int    `json:"method"`
+	Method       string `json:"method"`
 	Amount       int    `json:"amount"`
 	Diamond      int    `json:"diamond"`
 	DiamondBonus int    `json:"diamond_bonus"`
@@ -43,7 +43,7 @@ type TransAction struct {
 	DiamondBonus  int       `json:"diamond_bonus"`
 	UserDiamond   int       `json:"user_diamond"`
 	AppTransID    int       `json:"app_trans_id"`
-	Source        int       `json:"source"`
+	Source        string    `json:"source"`
 	Status        string    `json:"status"`
 	CreateAt      time.Time `json:"create_at"`
 	UpdateAt      time.Time `json:"update_at"`
