@@ -18,7 +18,7 @@ func main() {
 	handle.Init()
 	r := gin.Default()
 	r.GET("/payment-method", handle.GetPaymentMethod)
-	r.GET("/payment-item/:paymentMethod", handle.GetPaymentItem)
+	r.GET("/payment-item/:paymentMethodId", handle.GetPaymentItem)
 	r.POST("/payment", handle.Pay)
 
 	r.Run(":8000")

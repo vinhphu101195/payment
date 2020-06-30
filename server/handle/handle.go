@@ -58,13 +58,13 @@ func GetPaymentMethod(ctx *gin.Context) {
 }
 
 func GetPaymentItem(ctx *gin.Context) {
-	pmName := ctx.Param("paymentMethod")
-	if len(pmName) == 0 {
+	pmId := ctx.Param("paymentMethodId")
+	if len(pmId) == 0 {
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid payment method"}})
 		return
 	}
 	var pItem []Object.PaymentItem
-	if err := db.Where("method=?", pmName).Find(&pItem).Error; err != nil {
+	if err := db.Where("method=?", pmId).Find(&pItem).Error; err != nil {
 		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot find Item"}})
 		return
@@ -81,7 +81,7 @@ func GetPaymentItem(ctx *gin.Context) {
 type payBody struct {
 	PaymentMethodId    int    `json:"method_id"`
 	PaymentMethodName  string `json:"method_name"`
-	PaymentMethodOrder int    `method_order`
+	PaymentMethodOrder int    `json:"method_order"`
 	PaymentItemId      int    `json:"item_id"`
 	UserId             int    `json:"user_id"`
 	Serie              string `json:"serie"`
