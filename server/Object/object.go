@@ -3,23 +3,25 @@ package Object
 import "time"
 
 type PaymentMethod struct {
-	ID       int    `json:"method_id"`
-	Name     string `json:"name"`
-	Order    int    `json:"order"`
-	ImgURL   string `json:"image"`
-	Status   string `json:"status"`
-	Platform string `json:"platform"`
-	Note     string `json:"note"`
-	Provider int    `json:"provider"`
+	ID           int           `json:"method_id"`
+	Name         string        `json:"name"`
+	Order        int           `json:"order"`
+	ImgURL       string        `json:"image"`
+	Status       string        `json:"status"`
+	Platform     string        `json:"platform"`
+	Note         string        `json:"note"`
+	Provider     int           `json:"provider"`
+	PaymentItems []PaymentItem `gorm:"foreignkey:Method"`
 }
 
 type PaymentProvider struct {
-	ID          int    `json:"provider_id"`
-	Name        string `json:"name"`
-	PaymentAPI  string `json:"payment_api"`
-	CallbackAPI string `json:"callback_api"`
-	Metadata    string `json:"metadata"`
-	Note        string `json:"note"`
+	ID             int             `json:"provider_id"`
+	Name           string          `json:"name"`
+	PaymentAPI     string          `json:"payment_api"`
+	CallbackAPI    string          `json:"callback_api"`
+	Metadata       string          `json:"metadata"`
+	Note           string          `json:"note"`
+	PaymentMethods []PaymentMethod `gorm:"foreignkey:Provider"`
 }
 
 type PaymentItem struct {
