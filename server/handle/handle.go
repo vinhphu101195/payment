@@ -39,6 +39,27 @@ func Init() {
 	db.AutoMigrate(&Object.TransAction{})
 }
 
+func Load(ctx *gin.Context) {
+
+	var pMethod []Object.PaymentMethod
+	if err := db.Where("status=\"active\"").Find(&pMethod).Error; err != nil {
+		log.Println(err)
+		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find method"}})
+		return
+	}
+
+	for i, _ := range pMethod {
+		db.Model(&pMethod[i]).Association("PaymentItems").Find(&pMethod[i].PaymentItems)
+	}
+
+	if len(pMethod) == 0 {
+		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No method be found"}})
+		return
+	}
+
+	ctx.JSON(200, gin.H{"error": 0, "data": pMethod})
+}
+
 func GetPaymentMethod(ctx *gin.Context) {
 
 	var pMethod []Object.PaymentMethod
