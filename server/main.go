@@ -18,8 +18,15 @@ func main() {
 	handle.Init()
 	r := gin.Default()
 	r.GET("/", handle.Load)
+	r.GET("/payment-methods", handle.GetPaymentMethod)
 	r.GET("/payment-item/:paymentMethodId", handle.GetPaymentItem)
 	r.POST("/payment", handle.Pay)
+
+	r.GET("/payment-items", handle.GetPaymentItems)
+	r.GET("/payment-providers", handle.GetProviders)
+	r.GET("/transaction", handle.GetTransaction)
+	r.POST("/payment-method", handle.AddPaymentMethod)
+	r.POST("/payment-item", handle.AddPaymentItem)
 
 	r.Run(":8000")
 }
