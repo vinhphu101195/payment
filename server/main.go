@@ -6,6 +6,7 @@ import (
 
 	_ "payment/server/database"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -17,6 +18,8 @@ func main() {
 	}
 	handle.Init()
 	r := gin.Default()
+	r.Use(cors.Default())
+
 	r.GET("/payment-methods", handle.GetPaymentMethod)
 	r.GET("/payment-item/:paymentMethodId", handle.GetPaymentItem)
 	r.POST("/payment", handle.Pay)
