@@ -23,20 +23,20 @@ func AddPaymentMethod(ctx *gin.Context) {
 
 //AddPaymentItem ...
 func AddPaymentItem(ctx *gin.Context) {
-	var pMethod Object.PaymentMethod
-	if ctx.BindJSON(&pMethod) != nil {
+	var pItem Object.PaymentItem
+	if ctx.BindJSON(&pItem) != nil {
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid method"}})
 		return
 	}
-	pMethod.ID = 0
+	pItem.ID = 0
 
-	if err := db.Save(&pMethod).Error; err != nil {
+	if err := db.Save(&pItem).Error; err != nil {
 		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not insert to database"}})
 		return
 	}
 
-	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"insert_id": pMethod.ID}})
+	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"insert_id": pItem.ID}})
 }
 
 //GetPaymentItems get all items
@@ -89,4 +89,34 @@ func GetTransaction(ctx *gin.Context) {
 	}
 
 	ctx.JSON(200, gin.H{"error": 0, "data": pTransaction})
+}
+
+//UpdatePaymentMethod ...
+func UpdatePaymentMethod(ctx *gin.Context) {
+	var pMethod Object.PaymentMethod
+	if ctx.BindJSON(&pMethod) != nil {
+		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid method"}})
+		return
+	}
+
+	db.Save(&pMethod)
+
+	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"insert_id": pMethod.ID}})
+}
+
+//UpdatePaymentItem ...
+func UpdatePaymentItem(ctx *gin.Context) {
+	var pItem Object.PaymentItem
+	if ctx.BindJSON(&pItem) != nil {
+		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid method"}})
+		return
+	}
+
+	if err := db.Save(&pItem).Error; err != nil {
+		log.Println(err)
+		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not insert to database"}})
+		return
+	}
+
+	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"insert_id": pItem.ID}})
 }
