@@ -6,7 +6,7 @@ type PaymentMethod struct {
 	ID           int           `json:"method_id"`
 	Name         string        `json:"name"`
 	Order        int           `json:"order"`
-	ImgURL       string        `json:"image"`
+	ImgURL       string        `json:"img_url"`
 	Status       string        `json:"status"`
 	Platform     string        `json:"platform"`
 	Note         string        `json:"note"`
@@ -30,7 +30,7 @@ type PaymentItem struct {
 	Amount       int    `json:"amount"`
 	Diamond      int    `json:"diamond"`
 	DiamondBonus int    `json:"diamond_bonus"`
-	ImgURL       string `json:"image"`
+	ImgURL       string `json:"img_url"`
 	Status       string `json:"status"`
 	Metadata     string `json:"metadata"`
 }
