@@ -3,6 +3,7 @@ package handle
 import (
 	"log"
 	"payment/server/Object"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -77,7 +78,10 @@ func GetProviders(ctx *gin.Context) {
 //GetTransaction ...
 func GetTransaction(ctx *gin.Context) {
 	var pTransaction []Object.TransAction
-	if err := db.Find(&pTransaction).Error; err != nil {
+	const pagingSize = 50
+	page, _ := strconv.Atoi(ctx.Param("page"))
+
+	if err := db.Limit(pagingSize).Offset((page - 1) * pagingSize).Find(&pTransaction).Error; err != nil {
 		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot find Transaction"}})
 		return

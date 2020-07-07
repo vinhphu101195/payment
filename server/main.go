@@ -26,7 +26,7 @@ func main() {
 
 	r.GET("/payment-items", handle.GetPaymentItems)
 	r.GET("/payment-providers", handle.GetProviders)
-	r.GET("/transaction", handle.GetTransaction)
+	r.GET("/transaction/:page", handle.GetTransaction)
 	r.POST("/payment-method", handle.AddPaymentMethod)
 	r.POST("/payment-item", handle.AddPaymentItem)
 	r.PUT("/payment-method", handle.UpdatePaymentMethod)
