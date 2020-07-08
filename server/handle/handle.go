@@ -9,11 +9,13 @@ import (
 	"payment/server/Object"
 	database "payment/server/database"
 	"strings"
+	"time"
 
 	"github.com/jinzhu/gorm"
 
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 )
@@ -58,30 +60,15 @@ func Load(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"error": 0, "data": pMethod})
 }
 
-func GetPaymentMethod(ctx *gin.Context) {
-	var pMethod []Object.PaymentMethod
-	if err := db.Find(&pMethod).Error; err != nil {
-		log.Println(err)
-		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find method"}})
-		return
-	}
-
-	if len(pMethod) == 0 {
-		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No method be found"}})
-		return
-	}
-
-	ctx.JSON(200, gin.H{"error": 0, "data": pMethod})
-}
-
+//GetPaymentItem ...
 func GetPaymentItem(ctx *gin.Context) {
-	pmId := ctx.Param("paymentMethodId")
-	if len(pmId) == 0 {
+	pmID := ctx.Param("paymentMethodId")
+	if len(pmID) == 0 {
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid payment method"}})
 		return
 	}
 	var pItem []Object.PaymentItem
-	if err := db.Where("method=?", pmId).Find(&pItem).Error; err != nil {
+	if err := db.Where("method=?", pmID).Find(&pItem).Error; err != nil {
 		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot find Item"}})
 		return
@@ -121,13 +108,13 @@ func Pay(ctx *gin.Context) {
 		return
 	}
 
-	var provider *Object.PaymentProvider
-	db.Raw("Select pr from payment_provider pr inner join payment_method pm on pm.provider=pr.id where pr.id=?",
-		body.PaymentMethodId).Scan(provider)
-	if provider == nil {
-		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Provider not found"}})
-		return
-	}
+	var provider Object.PaymentProvider
+	db.Raw("Select pr.* from payment_provider pr inner join payment_method pm on pm.provider=pr.id where pm.id=?",
+		body.PaymentMethodId).Scan(&provider)
+	// if provider == nil {
+	// 	ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Provider not found"}})
+	// 	return
+	// }
 
 	if err := BeginTransAction(pItem, provider, body); err != nil {
 		log.Println(err)
@@ -138,7 +125,7 @@ func Pay(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"message": "Payment Success"}})
 }
 
-func BeginTransAction(pItem *Object.PaymentItem, provider *Object.PaymentProvider, body payBody) error {
+func BeginTransAction(pItem *Object.PaymentItem, provider Object.PaymentProvider, body payBody) error {
 
 	var trans Object.TransAction
 	trans.PaymentItemID = pItem.ID
@@ -148,19 +135,19 @@ func BeginTransAction(pItem *Object.PaymentItem, provider *Object.PaymentProvide
 	trans.Serie = body.Serie
 	trans.Source = body.PaymentMethodName
 	trans.Status = "created"
+	trans.CreateAt = time.Now()
+	trans.UpdateAt = time.Now()
 	trans.UserAmount = pItem.Amount
 	trans.UserID = body.UserId
 	trans.Diamond = pItem.Diamond
 	trans.DiamondBonus = pItem.DiamondBonus
 
-	if err := db.Save(trans).Error; err != nil {
+	if err := db.Create(&trans).Error; err != nil {
 		return err
 	}
 
 	info := make(map[string]interface{}, 0)
-	if err := json.Unmarshal([]byte(provider.Metadata), info); err != nil {
-		return err
-	}
+	json.Unmarshal([]byte(provider.Metadata), &info)
 
 	info["serie"] = body.Serie
 	info["pin"] = body.Pin
@@ -174,36 +161,46 @@ func BeginTransAction(pItem *Object.PaymentItem, provider *Object.PaymentProvide
 		res, err = thuTheRe(info, trans)
 	}
 	if err != nil {
+		trans.Status = "failed"
+		db.Save(&trans)
 		return err
 	}
 	defer res.Body.Close()
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
+		trans.Status = "failed"
+		db.Save(&trans)
 		return err
 	}
 
 	response := make(map[string]interface{}, 0)
-	if err = json.Unmarshal(resBody, response); err != nil {
-		return err
-	}
+	json.Unmarshal(resBody, &response)
 	if response["code"] == 100 {
 		trans.Status = "success"
 		db.Save(trans)
 		return nil
 	}
 	trans.Status = "failed"
-	db.Save(trans)
-	return fmt.Errorf("failed")
+	db.Save(&trans)
+	return fmt.Errorf(fmt.Sprint(response["msg"]))
 }
 
 func napTheNgay(info map[string]interface{}, trans Object.TransAction) (*http.Response, error) {
 	var plaintText = fmt.Sprintf("%s%s%d%d%d%s%s%s%s",
 		info["merchant_id"], info["api_mail"], trans.ID, trans.PaymentItemID, trans.Amount, info["pin"], info["serie"], "md5", info["secret_key"])
-	key := getMD5Hash(plaintText)
-	url := fmt.Sprintf("%s?merchant_id=%s&card_id=%d&seri_field=%s&pin_field=%s&trans_id=%d&data_sign=%s&algo_mode=md5&api_email=%s&card_value=%d",
-		info["url"], info["merchant_id"], trans.PaymentItemID, info["serie"], info["pin"], trans.ID, key, info["api_mail"], trans.Amount)
+	info["card_id"] = 1
+	info["trans_id"] = trans.ID
+	info["data_sign"] = getMD5Hash(plaintText)
+	info["card_value"] = trans.Amount
+	info["url"] = "http://api.napthengay.com/v2/"
+	baseUrl, _ := url.Parse(fmt.Sprint(info["url"]))
+	params := url.Values{}
+	for key, val := range info {
+		params.Add(key, fmt.Sprint(val))
+	}
 
-	return http.Post(url, "application/json", nil)
+	baseUrl.RawQuery = params.Encode()
+	return http.Post(baseUrl.String(), "application/x-www-form-urlencoded", nil)
 }
 
 func thuTheRe(info map[string]interface{}, trans Object.TransAction) (*http.Response, error) {

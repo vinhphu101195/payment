@@ -1,6 +1,8 @@
 package Object
 
-import "time"
+import (
+	"time"
+)
 
 type PaymentMethod struct {
 	ID           int           `json:"method_id"`
@@ -12,6 +14,25 @@ type PaymentMethod struct {
 	Note         string        `json:"note"`
 	Provider     int           `json:"provider"`
 	PaymentItems []PaymentItem `gorm:"foreignkey:Method"`
+}
+
+//PaymentMethodPopup for popup
+type PaymentMethodPopup struct {
+	ID   string `json:"method_id"`
+	Name string `json:"name"`
+}
+
+//ShowPaymentMethod for admin
+type ShowPaymentMethod struct {
+	ID           int    `json:"method_id"`
+	Provider     int    `json:"provider"`
+	ProviderName string `json:"provider_name"`
+	Name         string `json:"name"`
+	Order        int    `json:"order"`
+	ImgURL       string `json:"img_url"`
+	Status       string `json:"status"`
+	Platform     string `json:"platform"`
+	Note         string `json:"note"`
 }
 
 type PaymentProvider struct {
@@ -35,6 +56,19 @@ type PaymentItem struct {
 	Metadata     string `json:"metadata"`
 }
 
+//ShowPaymentItem for admin
+type ShowPaymentItem struct {
+	ID           int    `json:"item_id"`
+	MethodName   string `json:"method_name"`
+	Method       string `json:"method"`
+	Amount       int    `json:"amount"`
+	Diamond      int    `json:"diamond"`
+	DiamondBonus int    `json:"diamond_bonus"`
+	ImgURL       string `json:"img_url"`
+	Status       string `json:"status"`
+	Metadata     string `json:"metadata"`
+}
+
 type TransAction struct {
 	ID            int       `json:"trans_id"`
 	UserID        int       `json:"user_id"`
@@ -47,7 +81,7 @@ type TransAction struct {
 	AppTransID    int       `json:"app_trans_id"`
 	Source        string    `json:"source"`
 	Status        string    `json:"status"`
-	CreateAt      time.Time `json:"create_at"`
+	CreateAt      time.Time `json:"create_at", gorm:"default:current_timestamp"`
 	UpdateAt      time.Time `json:"update_at"`
 	PaymentItemID int       `json:"item_id"`
 	SenderID      int       `json:"sender_id"`
