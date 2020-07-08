@@ -54,8 +54,6 @@ func GetPaymentMethods(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No method be found"}})
 		return
 	}
-	log.Println(pMethod)
-
 	ctx.JSON(200, gin.H{"error": 0, "data": pMethod})
 }
 
@@ -87,7 +85,6 @@ func GetPaymentItems(ctx *gin.Context) {
 
 	db.Table("payment_item").Select("payment_item.id,payment_method.name as method_name, payment_item.method,payment_item.amount,payment_item.diamond,payment_item.diamond_bonus,payment_item.img_url,payment_item.status,payment_item.metadata").Joins("left join payment_method on payment_item.method = payment_method.id").Scan(&pItem)
 
-	log.Println(pItem)
 	if len(pItem) == 0 {
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No payment item be found"}})
 		return
