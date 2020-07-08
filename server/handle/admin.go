@@ -111,7 +111,23 @@ func GetProviders(ctx *gin.Context) {
 	}
 
 	ctx.JSON(200, gin.H{"error": 0, "data": pProviders})
+}
 
+//GetProviderPopup for admin popup
+func GetProviderPopup(ctx *gin.Context) {
+	var pProviders []Object.PaymentProvider
+	var pProviderPopup []Object.PaymentProviderPopup
+
+	if err := db.Select([]string{"id,name"}).Find(&pProviders).Scan(&pProviderPopup).Error; err != nil {
+		log.Println(err)
+		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find provider"}})
+		return
+	}
+	if len(pProviderPopup) == 0 {
+		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No provider be found"}})
+		return
+	}
+	ctx.JSON(200, gin.H{"error": 0, "data": pProviderPopup})
 }
 
 //GetTransaction ...

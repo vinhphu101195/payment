@@ -33,6 +33,7 @@ func main() {
 	r.PUT("/payment-item", handle.UpdatePaymentItem)
 
 	r.GET("/payment-method-popup", handle.GetPaymentMethodPopup)
+	r.GET("/payment-provider-popup", handle.GetProviderPopup)
 
 	r.Run(":8000")
 }

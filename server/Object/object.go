@@ -45,6 +45,12 @@ type PaymentProvider struct {
 	PaymentMethods []PaymentMethod `gorm:"foreignkey:Provider"`
 }
 
+//PaymentProviderPopup for popup
+type PaymentProviderPopup struct {
+	ID   int    `json:"provider_id"`
+	Name string `json:"name"`
+}
+
 type PaymentItem struct {
 	ID           int    `json:"item_id"`
 	Method       string `json:"method"`
