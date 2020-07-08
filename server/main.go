@@ -21,8 +21,7 @@ func main() {
 	r.Use(cors.Default())
 
 	r.GET("/", handle.Load)
-	r.GET("/payment-methods", handle.GetPaymentMethod)
-	r.GET("/payment-item/:paymentMethodId", handle.GetPaymentItem)
+	r.GET("/payment-methods", handle.GetPaymentMethods)
 	r.POST("/payment", handle.Pay)
 
 	r.GET("/payment-items", handle.GetPaymentItems)
@@ -32,6 +31,8 @@ func main() {
 	r.POST("/payment-item", handle.AddPaymentItem)
 	r.PUT("/payment-method", handle.UpdatePaymentMethod)
 	r.PUT("/payment-item", handle.UpdatePaymentItem)
+
+	r.GET("/payment-method-popup", handle.GetPaymentMethodPopup)
 
 	r.Run(":8000")
 }
