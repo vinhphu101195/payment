@@ -8,7 +8,9 @@ import (
 	"log"
 	"payment/server/Object"
 	database "payment/server/database"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jinzhu/gorm"
 
@@ -58,76 +60,26 @@ func Load(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"error": 0, "data": pMethod})
 }
 
-func GetPaymentMethod(ctx *gin.Context) {
-	var pMethod []Object.PaymentMethod
-	if err := db.Find(&pMethod).Error; err != nil {
-		log.Println(err)
-		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find method"}})
-		return
-	}
-
-	if len(pMethod) == 0 {
-		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No method be found"}})
-		return
-	}
-
-	ctx.JSON(200, gin.H{"error": 0, "data": pMethod})
-}
-
-func GetPaymentItem(ctx *gin.Context) {
-	pmId := ctx.Param("paymentMethodId")
-	if len(pmId) == 0 {
-		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid payment method"}})
-		return
-	}
-	var pItem []Object.PaymentItem
-	if err := db.Where("method=?", pmId).Find(&pItem).Error; err != nil {
-		log.Println(err)
-		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot find Item"}})
-		return
-	}
-
-	if len(pItem) == 0 {
-		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No payment item be found"}})
-		return
-	}
-
-	ctx.JSON(200, gin.H{"error": 0, "data": pItem})
-}
-
-type payBody struct {
-	PaymentMethodId    int    `json:"method_id"`
-	PaymentMethodName  string `json:"method_name"`
-	PaymentMethodOrder int    `json:"method_order"`
-	PaymentItemId      int    `json:"item_id"`
-	UserId             int    `json:"user_id"`
-	Serie              string `json:"serie"`
-	Pin                string `json:"pin"`
-}
-
 func Pay(ctx *gin.Context) {
-	var body payBody
-	if ctx.BindJSON(&body) != nil {
+	var body map[string]interface{}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid request"}})
 		return
 	}
 
 	var pItem *Object.PaymentItem
 	pItem = new(Object.PaymentItem)
-	db.First(&pItem, body.PaymentItemId)
+	db.First(&pItem, fmt.Sprint(body["item_id"]))
 
 	if pItem == nil {
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Payment item not found"}})
 		return
 	}
 
-	var provider *Object.PaymentProvider
-	db.Raw("Select pr from payment_provider pr inner join payment_method pm on pm.provider=pr.id where pr.id=?",
-		body.PaymentMethodId).Scan(provider)
-	if provider == nil {
-		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Provider not found"}})
-		return
-	}
+	var provider Object.PaymentProvider
+	db.Raw("Select pr.* from payment_provider pr inner join payment_method pm on pm.provider=pr.id where pm.id=?",
+		fmt.Sprint(body["method_id"])).Scan(&provider)
 
 	if err := BeginTransAction(pItem, provider, body); err != nil {
 		log.Println(err)
@@ -138,44 +90,79 @@ func Pay(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"message": "Payment Success"}})
 }
 
-func BeginTransAction(pItem *Object.PaymentItem, provider *Object.PaymentProvider, body payBody) error {
+func BeginTransAction(pItem *Object.PaymentItem, provider Object.PaymentProvider, body map[string]interface{}) error {
 
 	var trans Object.TransAction
 	trans.PaymentItemID = pItem.ID
-	trans.Pin = body.Pin
+	trans.Pin = body["pin"]
 	trans.Amount = pItem.Amount
+	trans.CreateAt = time.Now()
+	trans.UpdateAt = time.Now()
 	trans.Provider = provider.ID
-	trans.Serie = body.Serie
-	trans.Source = body.PaymentMethodName
+	trans.Serie = body["serie"])
+	trans.Source = body["method_name"]
 	trans.Status = "created"
 	trans.UserAmount = pItem.Amount
-	trans.UserID = body.UserId
+	trans.UserID, _ = strconv.Atoi(body["user_id"])
 	trans.Diamond = pItem.Diamond
 	trans.DiamondBonus = pItem.DiamondBonus
 
-	if err := db.Save(trans).Error; err != nil {
+	if err := db.Save(&trans).Error; err != nil {
 		return err
 	}
 
-	info := make(map[string]interface{}, 0)
-	if err := json.Unmarshal([]byte(provider.Metadata), info); err != nil {
+	info := make(map[string]string, 0)
+	if err := json.Unmarshal([]byte(provider.Metadata), &info); err != nil {
 		return err
 	}
 
-	info["serie"] = body.Serie
-	info["pin"] = body.Pin
+	info["payment_api"] = provider.PaymentAPI
+	ìno["callback_api"] = provider.CallbackAPI
 
-	var res *http.Response
+	info["serie"] = body["serie"]
+	info["pin"] = body["pin"]
+
 	var err error
 	switch strings.ToLower(provider.Name) {
 	case "napthengay":
-		res, err = napTheNgay(info, trans)
+		err = napTheNgay(info, trans)
 	case "thuthere":
-		res, err = thuTheRe(info, trans)
+		err = thuTheRe(info, trans)
+	case "vnpay":
+		err = vnPay(info, trans)
 	}
 	if err != nil {
+		trans.Status = "failed"
+		db.Save(&trans)
 		return err
 	}
+
+	return nil
+}
+
+func napTheNgay(info map[string]string, trans Object.TransAction) error {
+	switch strings.ToLower(trans.Source) {
+	case "viettel":
+		info["card_id"] = 1
+	case "vinaphone":
+		info["card_id"] = 3
+	case "mobiphone":
+		info["card_id"] = 2
+	case "zing":
+		info["card_id"] = 4
+	case "fpt":
+		info["card_id"] = 5
+	case "vtc":
+		info["card_id"] = 6
+	}
+	var plaintText = fmt.Sprintf("%s%s%d%d%d%s%s%s%s",
+		info["merchant_id"], info["api_mail"], trans.ID, info["card_id"], trans.Amount, info["pin"], info["serie"], "md5", info["secret_key"])
+	key := getMD5Hash(plaintText)
+	url := fmt.Sprintf("%s?merchant_id=%s&card_id=%d&seri_field=%s&pin_field=%s&trans_id=%d&data_sign=%s&algo_mode=md5&api_email=%s&card_value=%d",
+		info["payment_api"], info["merchant_id"], info["card_id"], info["serie"], info["pin"], trans.ID, key, info["api_mail"], trans.Amount)
+
+	log.Println(url)
+	res, err := http.Post(url, "application/x-www-form-urlencoded", nil)
 	defer res.Body.Close()
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
@@ -183,31 +170,63 @@ func BeginTransAction(pItem *Object.PaymentItem, provider *Object.PaymentProvide
 	}
 
 	response := make(map[string]interface{}, 0)
-	if err = json.Unmarshal(resBody, response); err != nil {
+	if err = json.Unmarshal(resBody, &response); err != nil {
 		return err
 	}
 	if response["code"] == 100 {
 		trans.Status = "success"
+		db.Save(&trans)
+		return nil
+	}
+	return fmt.Errorf("%s", response["msg"])
+}
+
+func thuTheRe(info map[string]string, trans Object.TransAction) error {
+	url := fmt.Sprintf("%s?id=%s&serial=%d&code=%s&cash=%s&type=%d&ghichu=",
+		info["payment_api"], info["id"], info["serie"], info["pin"], trans.Amount, strings.ToLower(trans.Source))
+	res, err := http.Post(url, "application/x-www-form-urlencoded", nil)
+
+	defer res.Body.Close()
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+
+	response := make(map[string]interface{}, 0)
+	if err = json.Unmarshal(resBody, &response); err != nil {
+		return err
+	}
+
+	if response["err"] == 0 {
+		trans.Status = "success"
 		db.Save(trans)
 		return nil
 	}
-	trans.Status = "failed"
-	db.Save(trans)
-	return fmt.Errorf("failed")
+	return fmt.Errorf("%s", response["msg"])
 }
 
-func napTheNgay(info map[string]interface{}, trans Object.TransAction) (*http.Response, error) {
-	var plaintText = fmt.Sprintf("%s%s%d%d%d%s%s%s%s",
-		info["merchant_id"], info["api_mail"], trans.ID, trans.PaymentItemID, trans.Amount, info["pin"], info["serie"], "md5", info["secret_key"])
-	key := getMD5Hash(plaintText)
-	url := fmt.Sprintf("%s?merchant_id=%s&card_id=%d&seri_field=%s&pin_field=%s&trans_id=%d&data_sign=%s&algo_mode=md5&api_email=%s&card_value=%d",
-		info["url"], info["merchant_id"], trans.PaymentItemID, info["serie"], info["pin"], trans.ID, key, info["api_mail"], trans.Amount)
-
-	return http.Post(url, "application/json", nil)
-}
-
-func thuTheRe(info map[string]interface{}, trans Object.TransAction) (*http.Response, error) {
-	return nil, fmt.Errorf("dasdad")
+func vnPay(info map[string]string, trans Object.TransAction) error {
+	vnp_Params:=map[string]interface{}
+	vnp_Params["vnp_Version"] = "2";
+    vnp_Params["vnp_Command"] = "pay";
+	vnp_Params["vnp_TmnCode"] = info["vnp_TmnCode"]
+	vnp_Params["vnp_Locale"] = "vn";
+    vnp_Params["vnp_CurrCode"] = "VND";
+    vnp_Params["vnp_TxnRef"] = trans.ID;
+    vnp_Params["vnp_OrderInfo"] = info["vnp_OrderInfo"]
+    vnp_Params["vnp_OrderType"] = info["vnp_OrderType"]
+    vnp_Params["vnp_Amount"] = trans.Amount * 100;
+    vnp_Params["vnp_ReturnUrl"] = "http://localhost:3000/"
+    vnp_Params["vnp_IpAddr"] = info["vnp_IpAddr"];
+    vnp_Params["vnp_CreateDate"] = time.Now().Format("yyyymmddHHmmss");
+    vnp_Params["vnp_BankCode"] = info["vnp_bankCode"];
+	vnp_Params
+	type SortBy []Type
+	
+	func (a SortBy) Len() int           { return len(a) }
+	func (a SortBy) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+	func (a SortBy) Less(i, j int) bool { return a[i] < a[j] }
+	return fmt.Errorf(url)
 }
 
 func getMD5Hash(text string) string {
