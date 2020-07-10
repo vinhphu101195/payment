@@ -1,6 +1,7 @@
 package handle
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha256"
@@ -83,16 +84,23 @@ func Pay(ctx *gin.Context) {
 	db.Raw("Select pr.* from payment_provider pr inner join payment_method pm on pm.provider=pr.id where pm.id=?",
 		fmt.Sprint(body["method_id"])).Scan(&provider)
 
-	if err := BeginTransAction(pItem, provider, body); err != nil {
+	resultURL, err := BeginTransAction(ctx, pItem, provider, body)
+	if err != nil {
 		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Connect to provider failed"}})
 		return
 	}
+	if resultURL == "" {
+		ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"message": "Payment Success"}})
+	} else {
+		ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"message": "Payment Hafl Success", "payURL": resultURL}})
 
-	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"message": "Payment Success"}})
+	}
+
 }
 
-func BeginTransAction(pItem *Object.PaymentItem, provider Object.PaymentProvider, body map[string]interface{}) error {
+//BeginTransAction ...
+func BeginTransAction(ctx *gin.Context, pItem *Object.PaymentItem, provider Object.PaymentProvider, body map[string]interface{}) (string, error) {
 
 	var trans Object.TransAction
 	trans.PaymentItemID = pItem.ID
@@ -112,12 +120,12 @@ func BeginTransAction(pItem *Object.PaymentItem, provider Object.PaymentProvider
 	trans.DiamondBonus = pItem.DiamondBonus
 
 	if err := db.Save(&trans).Error; err != nil {
-		return err
+		return "", err
 	}
 
 	info := make(map[string]string, 0)
 	if err := json.Unmarshal([]byte(provider.Metadata), &info); err != nil {
-		return err
+		return "", err
 	}
 
 	info["payment_api"] = provider.PaymentAPI
@@ -127,21 +135,23 @@ func BeginTransAction(pItem *Object.PaymentItem, provider Object.PaymentProvider
 	info["pin"] = fmt.Sprint(body["pin"])
 
 	var err error
+	var resultURL string
 	switch strings.ToLower(provider.Name) {
 	case "napthengay":
 		err = napTheNgay(info, trans)
 	case "thuthere":
 		err = thuTheRe(info, trans)
-		// case "vnpay":
-		// 	err = vnPay(info, trans)
+	// case "vnpay":
+	// 	err = vnPay(info, trans)
+	case "momo":
+		resultURL, err = useMomo(ctx, info, trans)
 	}
 	if err != nil {
 		trans.Status = "failed"
 		db.Save(&trans)
-		return err
+		return "", err
 	}
-
-	return nil
+	return resultURL, nil
 }
 
 func napTheNgay(info map[string]string, trans Object.TransAction) error {
@@ -235,51 +245,54 @@ func thuTheRe(info map[string]string, trans Object.TransAction) error {
 // 	return fmt.Errorf(url)
 // }
 
-// func useMomo(info map[string]string, trans Object.TransAction) error {
-// 	const apiEndPoint = "https://test-payment.momo.vn/gw_payment/transactionProcessor"
-// 	const returnURL = "https://alive.vn/napkc"
-// 	const notifyURL = "https://localhost:3000"
-// 	const requestType = "captureMoMoWallet"
+func useMomo(ctx *gin.Context, info map[string]string, trans Object.TransAction) (string, error) {
+	const apiEndPoint = "https://test-payment.momo.vn/gw_payment/transactionProcessor"
+	const returnURL = "http://localhost:3000/momo-result"
+	const notifyURL = "http://localhost:8000/"
+	const requestType = "captureMoMoWallet"
 
-// 	info["requestType"] = requestType
-// 	info["returnUrl"] = returnURL
-// 	info["notifyUrl"] = notifyURL
-// 	info["orderId"] = strconv.Itoa(trans.ID)
-// 	info["requestId"] = strconv.Itoa(trans.ID)
-// 	info["amount"] = strconv.Itoa(trans.Amount)
-// 	info["orderInfo"] = "nap " + strconv.Itoa(trans.Amount)
-// 	//create signature
-// 	var plaintText = fmt.Sprintf("partnerCode=%s&accessKey=%s&requestId=%d&amount=%d&orderId=%d&orderInfo=%s&returnUrl=%s&notifyUrl=%s,&extraData=",
-// 		info["partnerCode"], info["accessKey"], trans.ID, trans.Amount, trans.ID, info["orderInfo"], returnURL, notifyURL, info["extraData"])
-// 	var secrectKey = info["secretKey"]
-// 	signature := getHMACSHA256(plaintText, fmt.Sprint(secrectKey))
-// 	info["signature"] = signature
+	info["requestType"] = requestType
+	info["returnUrl"] = returnURL
+	info["notifyUrl"] = notifyURL
+	info["orderId"] = strconv.Itoa(trans.ID)
+	info["requestId"] = strconv.Itoa(trans.ID)
+	info["amount"] = strconv.Itoa(trans.Amount)
+	info["orderInfo"] = "nap " + strconv.Itoa(trans.Amount)
+	//create signature
+	var plaintText = fmt.Sprintf("partnerCode=%s&accessKey=%s&requestId=%d&amount=%d&orderId=%d&orderInfo=%s&returnUrl=%s&notifyUrl=%s&extraData=%s",
+		info["partnerCode"], info["accessKey"], trans.ID, trans.Amount, trans.ID, info["orderInfo"], returnURL, notifyURL, info["extraData"])
+	var secrectKey = info["secretKey"]
+	signature := getHMACSHA256(plaintText, fmt.Sprint(secrectKey))
+	info["signature"] = signature
 
-// 	jsonBody, err := json.Marshal(info)
-// 	if err != nil {
-// 		return err
-// 	}
+	jsonBody, err := json.Marshal(info)
+	if err != nil {
+		return "", err
+	}
 
-// 	resp, err := http.Post(apiEndPoint, "application/json", bytes.NewBuffer(jsonBody))
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer resp.Body.Close()
+	delete(info, "secretKey")
+	resp, err := http.Post(info["payment_api"], "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", err
+	}
 
-// 	body, err := ioutil.ReadAll(resp.Body)
-// 	if err != nil {
-// 		return err
-// 	}
+	defer resp.Body.Close()
 
-// 	respone := make(map[string]interface{}, 0)
-// 	if err = json.Unmarshal(body, &respone); err != nil {
-// 		return err
-// 	}
-// 	if respone["errorCode"] == 0 {
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
 
-// 	}
+	respone := make(map[string]interface{}, 0)
+	if err = json.Unmarshal(body, &respone); err != nil {
+		return "", err
+	}
+	if fmt.Sprint(respone["errorCode"]) == "0" {
+		return fmt.Sprint(respone["payUrl"]), nil
+	}
+	return "", fmt.Errorf(fmt.Sprint(respone["localMessage"]))
 
-// }
+}
 
 func getHMACSHA256(text string, secretKey string) string {
 	mac := hmac.New(sha256.New, []byte(secretKey))
