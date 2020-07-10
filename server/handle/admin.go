@@ -11,7 +11,8 @@ import (
 //AddPaymentMethod ...
 func AddPaymentMethod(ctx *gin.Context) {
 	var pMethod Object.PaymentMethod
-	if ctx.BindJSON(&pMethod) != nil {
+	if err := ctx.ShouldBindJSON(&pMethod); err != nil {
+		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid method"}})
 		return
 	}
@@ -25,7 +26,8 @@ func AddPaymentMethod(ctx *gin.Context) {
 //AddPaymentItem ...
 func AddPaymentItem(ctx *gin.Context) {
 	var pItem Object.PaymentItem
-	if ctx.BindJSON(&pItem) != nil {
+	if err := ctx.ShouldBindJSON(&pItem); err != nil {
+		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid method"}})
 		return
 	}
@@ -40,15 +42,14 @@ func AddPaymentItem(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"insert_id": pItem.ID}})
 }
 
-//GetPaymentMethods for admin
 func GetPaymentMethods(ctx *gin.Context) {
-	var pMethod []Object.ShowPaymentMethod
-	// if err := db.Find(&pMethod).Error; err != nil {
-	// 	log.Println(err)
-	// 	ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find method"}})
-	// 	return
-	// }
-	db.Table("payment_method").Select("payment_method.id,payment_method.provider,payment_provider.name as provider_name,payment_method.name,payment_method.order,payment_method.img_url,payment_method.status,payment_method.platform,payment_method.note").Joins("inner join payment_provider on payment_method.provider = payment_provider.id").Scan(&pMethod)
+	provider := ctx.Query("provider")
+	var pMethod []Object.PaymentMethod
+	if err := db.Where("provider=?", provider).Find(&pMethod).Error; err != nil {
+		log.Println(err)
+		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find method"}})
+		return
+	}
 
 	if len(pMethod) == 0 {
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No method be found"}})
@@ -63,15 +64,9 @@ func GetPaymentMethodPopup(ctx *gin.Context) {
 	var pMethodPopup []Object.PaymentMethodPopup
 
 	if err := db.Select([]string{"id,name"}).Where("status=\"active\"").Find(&pMethod).Scan(&pMethodPopup).Error; err != nil {
-		log.Println(err)
-		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find method"}})
-		return
+
+		ctx.JSON(200, gin.H{"error": 0, "data": pMethod})
 	}
-	if len(pMethodPopup) == 0 {
-		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No method be found"}})
-		return
-	}
-	ctx.JSON(200, gin.H{"error": 0, "data": pMethodPopup})
 }
 
 //GetPaymentItems get all items
@@ -150,20 +145,26 @@ func GetTransaction(ctx *gin.Context) {
 //UpdatePaymentMethod ...
 func UpdatePaymentMethod(ctx *gin.Context) {
 	var pMethod Object.PaymentMethod
-	if ctx.BindJSON(&pMethod) != nil {
+	if err := ctx.ShouldBindJSON(&pMethod); err != nil {
+		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid method"}})
 		return
 	}
 
-	db.Save(&pMethod)
+	if err := db.Save(&pMethod).Error; err != nil {
+		log.Println(err)
+		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not insert to database"}})
+		return
+	}
 
-	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"insert_id": pMethod.ID}})
+	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"updated_id": pMethod.ID}})
 }
 
 //UpdatePaymentItem ...
 func UpdatePaymentItem(ctx *gin.Context) {
 	var pItem Object.PaymentItem
-	if ctx.BindJSON(&pItem) != nil {
+	if err := ctx.ShouldBindJSON(&pItem); err != nil {
+		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "Invalid method"}})
 		return
 	}
