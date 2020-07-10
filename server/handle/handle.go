@@ -99,7 +99,7 @@ func BeginTransAction(pItem *Object.PaymentItem, provider Object.PaymentProvider
 	trans.CreateAt = time.Now()
 	trans.UpdateAt = time.Now()
 	trans.Provider = provider.ID
-	trans.Serie = body["serie"])
+	trans.Serie = body["serie"]
 	trans.Source = body["method_name"]
 	trans.Status = "created"
 	trans.UserAmount = pItem.Amount
@@ -206,27 +206,21 @@ func thuTheRe(info map[string]string, trans Object.TransAction) error {
 }
 
 func vnPay(info map[string]string, trans Object.TransAction) error {
-	vnp_Params:=map[string]interface{}
-	vnp_Params["vnp_Version"] = "2";
-    vnp_Params["vnp_Command"] = "pay";
+	vnp_Params := make(map[string]interface{}, 0)
+	vnp_Params["vnp_Version"] = "2"
+	vnp_Params["vnp_Command"] = "pay"
 	vnp_Params["vnp_TmnCode"] = info["vnp_TmnCode"]
-	vnp_Params["vnp_Locale"] = "vn";
-    vnp_Params["vnp_CurrCode"] = "VND";
-    vnp_Params["vnp_TxnRef"] = trans.ID;
-    vnp_Params["vnp_OrderInfo"] = info["vnp_OrderInfo"]
-    vnp_Params["vnp_OrderType"] = info["vnp_OrderType"]
-    vnp_Params["vnp_Amount"] = trans.Amount * 100;
-    vnp_Params["vnp_ReturnUrl"] = "http://localhost:3000/"
-    vnp_Params["vnp_IpAddr"] = info["vnp_IpAddr"];
-    vnp_Params["vnp_CreateDate"] = time.Now().Format("yyyymmddHHmmss");
-    vnp_Params["vnp_BankCode"] = info["vnp_bankCode"];
-	vnp_Params
-	type SortBy []Type
-	
-	func (a SortBy) Len() int           { return len(a) }
-	func (a SortBy) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-	func (a SortBy) Less(i, j int) bool { return a[i] < a[j] }
-	return fmt.Errorf(url)
+	vnp_Params["vnp_Locale"] = "vn"
+	vnp_Params["vnp_CurrCode"] = "VND"
+	vnp_Params["vnp_TxnRef"] = trans.ID
+	vnp_Params["vnp_OrderInfo"] = info["vnp_OrderInfo"]
+	vnp_Params["vnp_OrderType"] = info["vnp_OrderType"]
+	vnp_Params["vnp_Amount"] = trans.Amount * 100
+	vnp_Params["vnp_ReturnUrl"] = "http://localhost:3000/"
+	vnp_Params["vnp_IpAddr"] = info["vnp_IpAddr"]
+	vnp_Params["vnp_CreateDate"] = time.Now().Format("yyyymmddHHmmss")
+	vnp_Params["vnp_BankCode"] = info["vnp_bankCode"]
+	url.
 }
 
 func getMD5Hash(text string) string {
