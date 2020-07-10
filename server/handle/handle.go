@@ -19,7 +19,6 @@ import (
 
 	"io/ioutil"
 	"net/http"
-	"net/url"
 
 	"github.com/gin-gonic/gin"
 )
@@ -103,7 +102,7 @@ func BeginTransAction(pItem *Object.PaymentItem, provider Object.PaymentProvider
 	trans.CreateAt = time.Now()
 	trans.UpdateAt = time.Now()
 	trans.Provider = provider.ID
-	trans.Serie = body["serie"])
+	trans.Serie = body["serie"]
 	trans.Source = body["method_name"]
 	trans.Status = "created"
 	trans.CreateAt = time.Now()
@@ -230,7 +229,7 @@ func thuTheRe(info map[string]string, trans Object.TransAction) error {
 //     vnp_Params["vnp_BankCode"] = info["vnp_bankCode"];
 // 	vnp_Params
 // 	type SortBy []Type
-	
+
 // 	func (a SortBy) Len() int           { return len(a) }
 // 	func (a SortBy) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 // 	func (a SortBy) Less(i, j int) bool { return a[i] < a[j] }

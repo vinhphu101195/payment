@@ -42,6 +42,7 @@ func AddPaymentItem(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"insert_id": pItem.ID}})
 }
 
+//GetPaymentMethods ...
 func GetPaymentMethods(ctx *gin.Context) {
 	provider := ctx.Query("provider")
 	var pMethod []Object.PaymentMethod
