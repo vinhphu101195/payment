@@ -125,3 +125,6 @@ type NapTheNgayRequest struct {
 	APIEmail   string `json:"api_email"`
 	CardValue  int    `json:"card_value"`
 }
+
+type Momo struct {
+}

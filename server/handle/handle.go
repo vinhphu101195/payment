@@ -1,13 +1,17 @@
 package handle
 
 import (
+	"bytes"
+	"crypto/hmac"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
 	"payment/server/Object"
 	database "payment/server/database"
+	"strconv"
 	"strings"
 	"time"
 
@@ -198,6 +202,7 @@ func napTheNgay(info map[string]interface{}, trans Object.TransAction) (*http.Re
 	for key, val := range info {
 		params.Add(key, fmt.Sprint(val))
 	}
+	log.Println(baseUrl.String())
 
 	baseUrl.RawQuery = params.Encode()
 	return http.Post(baseUrl.String(), "application/x-www-form-urlencoded", nil)
@@ -205,6 +210,59 @@ func napTheNgay(info map[string]interface{}, trans Object.TransAction) (*http.Re
 
 func thuTheRe(info map[string]interface{}, trans Object.TransAction) (*http.Response, error) {
 	return nil, fmt.Errorf("dasdad")
+}
+
+func useMomo(info map[string]string, trans Object.TransAction) error {
+	const apiEndPoint = "https://test-payment.momo.vn/gw_payment/transactionProcessor"
+	const returnURL = "https://alive.vn/napkc"
+	const notifyURL = "https://localhost:3000"
+	const requestType = "captureMoMoWallet"
+
+	info["requestType"] = requestType
+	info["returnUrl"] = returnURL
+	info["notifyUrl"] = notifyURL
+	info["orderId"] = strconv.Itoa(trans.ID)
+	info["requestId"] = strconv.Itoa(trans.ID)
+	info["amount"] = strconv.Itoa(trans.Amount)
+	info["orderInfo"] = "nap " + strconv.Itoa(trans.Amount)
+	//create signature
+	var plaintText = fmt.Sprintf("partnerCode=%s&accessKey=%s&requestId=%d&amount=%d&orderId=%d&orderInfo=%s&returnUrl=%s&notifyUrl=%s,&extraData=",
+		info["partnerCode"], info["accessKey"], trans.ID, trans.Amount, trans.ID, info["orderInfo"], returnURL, notifyURL, info["extraData"])
+	var secrectKey = info["secretKey"]
+	signature := getHMACSHA256(plaintText, fmt.Sprint(secrectKey))
+	info["signature"] = signature
+
+	jsonBody, err := json.Marshal(info)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(apiEndPoint, "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	respone := make(map[string]interface{}, 0)
+	if err = json.Unmarshal(body, &respone); err != nil {
+		return err
+	}
+	if respone["errorCode"] == 0 {
+
+	}
+
+}
+
+func getHMACSHA256(text string, secretKey string) string {
+	mac := hmac.New(sha256.New, []byte(secretKey))
+	mac.Write([]byte(text))
+	expectedMac := hex.EncodeToString(mac.Sum(nil))
+	return expectedMac
 }
 
 func getMD5Hash(text string) string {
