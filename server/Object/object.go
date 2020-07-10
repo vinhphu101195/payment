@@ -26,7 +26,7 @@ type PaymentProvider struct {
 
 type PaymentItem struct {
 	ID           int    `json:"item_id"`
-	Method       string `json:"method"`
+	Method       int    `json:"method"`
 	Amount       int    `json:"amount"`
 	Diamond      int    `json:"diamond"`
 	DiamondBonus int    `json:"diamond_bonus"`
