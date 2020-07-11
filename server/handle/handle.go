@@ -417,13 +417,15 @@ func ProcessResultVnPay(ctx *gin.Context) {
 		trans.Status = "success"
 		trans.AppTransID = req["vnp_TransactionNo"]
 		db.Save(&trans)
-		ctx.JSON(200, gin.H{"error": 0, "data": "payment successfull"})
+		ctx.Redirect(http.StatusMovedPermanently, "http://localhost:3000/?payment=success")
+
 		return
 	}
 	trans.Status = "failed"
 	trans.ErrorMessage = req["vnp_ResponseCode"]
 	db.Save(&trans)
-	ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Something was wrong"}})
+	ctx.Redirect(http.StatusMovedPermanently, "http://localhost:3000/?payment=fail")
+
 }
 
 func getMD5Hash(text string) string {
