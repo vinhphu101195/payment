@@ -28,6 +28,7 @@ func main() {
 	r.POST("/payment-item", handle.AddPaymentItem)
 	r.PUT("/payment-method", handle.UpdatePaymentMethod)
 	r.PUT("/payment-item", handle.UpdatePaymentItem)
+	r.GET("/vnpay-result", handle.ProcessResultVnPay)
 
 	r.Run(":8000")
 }

@@ -44,7 +44,7 @@ type TransAction struct {
 	Diamond       int       `json:"diamond"`
 	DiamondBonus  int       `json:"diamond_bonus"`
 	UserDiamond   int       `json:"user_diamond"`
-	AppTransID    int       `json:"app_trans_id"`
+	AppTransID    string    `json:"app_trans_id"`
 	Source        string    `json:"source"`
 	Status        string    `json:"status"`
 	CreateAt      time.Time `json:"create_at"`
