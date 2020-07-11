@@ -126,7 +126,7 @@ func GetProviderPopup(ctx *gin.Context) {
 //GetTransaction ...
 func GetTransaction(ctx *gin.Context) {
 	var pTransaction []Object.TransAction
-	const pagingSize = 50
+	const pagingSize = 10
 	page, _ := strconv.Atoi(ctx.Param("page"))
 
 	if err := db.Limit(pagingSize).Offset((page - 1) * pagingSize).Find(&pTransaction).Error; err != nil {
