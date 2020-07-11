@@ -4,9 +4,15 @@ import (
 	"log"
 	"payment/server/Object"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+type commonInfo struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
 
 //AddPaymentMethod ...
 func AddPaymentMethod(ctx *gin.Context) {
@@ -44,16 +50,18 @@ func AddPaymentItem(ctx *gin.Context) {
 
 //GetPaymentMethods ...
 func GetPaymentMethods(ctx *gin.Context) {
-	provider := ctx.Query("provider")
 	var pMethod []Object.PaymentMethod
-	if err := db.Where("provider=?", provider).Find(&pMethod).Error; err != nil {
+	provider := []commonInfo{}
+	db.Raw("select id,name from payment_provider").Scan(&provider)
+
+	if err := db.Find(&pMethod).Error; err != nil {
 		log.Println(err)
-		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find method"}})
+		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find method", "provider": provider}})
 		return
 	}
 
 	if len(pMethod) == 0 {
-		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No method be found"}})
+		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No method be found", "provider": provider}})
 		return
 	}
 	ctx.JSON(200, gin.H{"error": 0, "data": pMethod})
@@ -73,20 +81,18 @@ func GetPaymentMethodPopup(ctx *gin.Context) {
 //GetPaymentItems get all items
 func GetPaymentItems(ctx *gin.Context) {
 	var pItem []Object.ShowPaymentItem
-	// if err := db.Find(&pItem).Error; err != nil {
-	// 	log.Println(err)
-	// 	ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot find Item"}})
-	// 	return
-	// }
 
 	db.Table("payment_item").Select("payment_item.id,payment_method.name as method_name, payment_item.method,payment_item.amount,payment_item.diamond,payment_item.diamond_bonus,payment_item.img_url,payment_item.status,payment_item.metadata").Joins("left join payment_method on payment_item.method = payment_method.id").Scan(&pItem)
 
-	if len(pItem) == 0 {
-		ctx.JSON(200, gin.H{"error": 404, "data": gin.H{"error": "No payment item be found"}})
+	method := []commonInfo{}
+	db.Raw("select id,name from payment_method").Scan(&method)
+	if err := db.Find(&pItem).Error; err != nil {
+		log.Println(err)
+		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot find Item", "method": method}})
 		return
 	}
 
-	ctx.JSON(200, gin.H{"error": 0, "data": pItem})
+	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"item": pItem, "method": method}})
 }
 
 //GetProviders get all Providers
@@ -125,11 +131,24 @@ func GetProviderPopup(ctx *gin.Context) {
 
 //GetTransaction ...
 func GetTransaction(ctx *gin.Context) {
-	var pTransaction []Object.TransAction
-	const pagingSize = 10
-	page, _ := strconv.Atoi(ctx.Param("page"))
+	start := ctx.Query("startDay")
+	end := ctx.Query("endDay")
+	page, err := strconv.Atoi(ctx.Query("page"))
 
-	if err := db.Limit(pagingSize).Offset((page - 1) * pagingSize).Find(&pTransaction).Error; err != nil {
+	if err != nil {
+		page = 1
+	}
+
+	if start == "" {
+		start = "2020-01-01"
+		end = time.Now().AddDate(0, 0, 1).Format("2006-01-02")
+	} else if end == "" {
+		end = time.Now().AddDate(0, 0, 1).Format("2006-01-02")
+	}
+
+	var pTransaction []Object.TransAction
+	if err := db.Limit(20).Offset((page-1)*20).Where(
+		"create_at>? and create_at<?", start, end).Order("create_at desc").Find(&pTransaction).Error; err != nil {
 		log.Println(err)
 		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Cannot find Transaction"}})
 		return
@@ -140,7 +159,7 @@ func GetTransaction(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(200, gin.H{"error": 0, "data": pTransaction})
+	ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"length": len(pTransaction), "transaction": pTransaction}})
 }
 
 //UpdatePaymentMethod ...
