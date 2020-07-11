@@ -126,5 +126,15 @@ type NapTheNgayRequest struct {
 	CardValue  int    `json:"card_value"`
 }
 
-type Momo struct {
+//MomoReponse receive the response from MoMo by IPN
+type MomoReponse struct {
+	PartnerCode  string `json:"partnerCode"`
+	AccessKey    string `json:"accessKey"`
+	RequestID    string `json:"requestId"`
+	OrderID      string `json:"orderId"`
+	ErrorCode    int    `json:"errorCode"`
+	Message      string `json:"message"`
+	ResponseTime string `json:"responseTime"`
+	ExtraData    string `json:"extraData"`
+	Signature    string `json:"signature"`
 }

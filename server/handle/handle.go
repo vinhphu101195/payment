@@ -94,7 +94,6 @@ func Pay(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"message": "Payment Success"}})
 	} else {
 		ctx.JSON(200, gin.H{"error": 0, "data": gin.H{"message": "Payment Hafl Success", "payURL": resultURL}})
-
 	}
 
 }
@@ -247,7 +246,7 @@ func thuTheRe(info map[string]string, trans Object.TransAction) error {
 
 func useMomo(ctx *gin.Context, info map[string]string, trans Object.TransAction) (string, error) {
 	const apiEndPoint = "https://test-payment.momo.vn/gw_payment/transactionProcessor"
-	const returnURL = "http://localhost:3000/momo-result"
+	const returnURL = "http://localhost:8000/momo-result"
 	const notifyURL = "http://localhost:8000/"
 	const requestType = "captureMoMoWallet"
 
@@ -291,7 +290,64 @@ func useMomo(ctx *gin.Context, info map[string]string, trans Object.TransAction)
 		return fmt.Sprint(respone["payUrl"]), nil
 	}
 	return "", fmt.Errorf(fmt.Sprint(respone["localMessage"]))
+}
 
+//MoMoReponse ...
+func MoMoReponse(ctx *gin.Context) {
+
+	var pProviders Object.PaymentProvider
+	var trans Object.TransAction
+	db.First(&trans, ctx.Query("orderId"))
+
+	signatureRespone := ctx.Query("signature")
+	req := make(map[string]string, 0)
+	listRespone := []string{"partnerCode", "accessKey",
+		"requestId", "amount", "orderId", "orderInfo",
+		"orderType", "transId", "message", "localMessage",
+		"responseTime", "errorCode", "payType", "extraData"}
+	query := ""
+	i := 0
+	for _, val := range listRespone {
+		req[val] = ctx.Query(val)
+		if i != 0 {
+
+			query += "&" + val + "=" + req[val]
+		} else {
+			query += val + "=" + req[val]
+			i = 1
+		}
+	}
+	// get secretKey from provider
+	if err := db.Select([]string{"metadata"}).Where("name=?", "Momo").Find(&pProviders).Error; err != nil {
+		log.Println(err)
+		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "Can not find provider"}})
+		return
+	}
+	metaData := make(map[string]string, 0)
+	if err := json.Unmarshal([]byte(pProviders.Metadata), &metaData); err != nil {
+		return
+	}
+
+	// create signature add database
+	signature := getHMACSHA256(query, metaData["secretKey"])
+
+	if signature != signatureRespone {
+		ctx.JSON(200, gin.H{"error": 500, "data": gin.H{"error": "wrong signature"}})
+
+	}
+
+	if ctx.Query("errorCode") == "0" {
+		trans.Status = "success"
+		trans.AppTransID, _ = strconv.Atoi(ctx.Query("transId"))
+		log.Println(trans.AppTransID)
+		db.Save(&trans)
+		ctx.Redirect(http.StatusMovedPermanently, "http://localhost:3000/?payment=success")
+		return
+	}
+	trans.Status = "fail"
+	trans.Metadata = "errorMessage: " + ctx.Query("message")
+	db.Save(&trans)
+	ctx.Redirect(http.StatusMovedPermanently, "http://localhost:3000/?payment=fail")
 }
 
 func getHMACSHA256(text string, secretKey string) string {

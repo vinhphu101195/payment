@@ -35,5 +35,7 @@ func main() {
 	r.GET("/payment-method-popup", handle.GetPaymentMethodPopup)
 	r.GET("/payment-provider-popup", handle.GetProviderPopup)
 
+	r.GET("/momo-result", handle.MoMoReponse)
+
 	r.Run(":8000")
 }
